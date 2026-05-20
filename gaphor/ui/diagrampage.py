@@ -4,12 +4,14 @@ import logging
 
 from gaphas.guide import GuidePainter
 from gaphas.painter import FreeHandPainter, HandlePainter, PainterChain
+from gaphas.segment import Segment
 from gaphas.segment import LineSegmentPainter
 from gaphas.tool.itemtool import default_find_item_and_handle_at_point
 from gaphas.tool.rubberband import RubberbandPainter, RubberbandState
 from gaphas.view import GtkView
 from gi.repository import Adw, Gdk, GdkPixbuf, Gio, GLib, Gtk
 
+from gaphor.action import action
 from gaphor.core import event_handler, gettext
 from gaphor.core.modeling import StyleSheet
 from gaphor.core.modeling.diagram import StyledDiagram
@@ -18,6 +20,7 @@ from gaphor.core.modeling.event import (
     StyleSheetUpdated,
 )
 from gaphor.core.styling import PrefersColorScheme
+from gaphor.diagram.presentation import LinePresentation
 from gaphor.diagram.diagramtoolbox import get_tool_def, tooliter
 from gaphor.diagram.painter import DiagramTypePainter, ItemPainter
 from gaphor.diagram.tools import (
@@ -318,6 +321,24 @@ class DiagramPage:
 
         view.request_update(self.diagram.get_all_items())
 
+    @action(name="diagram.reset-line", label="Straighten Line")
+    def reset_line(self, item_id: str):
+        item = self.diagram.lookup(item_id)
+        if not isinstance(item, LinePresentation):
+            return
+
+        with Transaction(self.event_manager):
+            while len(item.handles()) > 2:
+                segment = Segment(item, self.diagram)
+                segment.merge_segment(0)
+            item.orthogonal = False
+            item.horizontal = False
+            item.request_update()
+
+        self.diagram.update({item})
+        if self.view:
+            self.view.request_update([item])
+
 
 def delete_selected_items(view: GtkView, event_manager):
     with Transaction(event_manager):
@@ -337,9 +358,10 @@ def context_menu_controller(context_menu, diagram):
 
         view = ctrl.get_widget()
         item, _handle = default_find_item_and_handle_at_point(view, (x, y))
+        subject = item.subject if item and item.subject else diagram
 
         context_menu.set_menu_model(
-            popup_model(item.subject if item and item.subject else diagram)
+            popup_model(subject, item)
         )
 
         gdk_rect = Gdk.Rectangle()
@@ -357,7 +379,11 @@ def context_menu_controller(context_menu, diagram):
     return ctrl
 
 
-def popup_model(element):
+def can_reset_line(item) -> bool:
+    return isinstance(item, LinePresentation) and len(item.handles()) > 2
+
+
+def popup_model(element, item=None):
     model = Gio.Menu.new()
     part = Gio.Menu.new()
 
@@ -369,5 +395,15 @@ def popup_model(element):
 
     part.append_item(menu_item)
     model.append_section(None, part)
+
+    if can_reset_line(item):
+        part = Gio.Menu.new()
+        menu_item = Gio.MenuItem.new(
+            gettext("Straighten Line"),
+            "diagram.reset-line",
+        )
+        menu_item.set_attribute_value("target", GLib.Variant.new_string(item.id))
+        part.append_item(menu_item)
+        model.append_section(None, part)
 
     return model

@@ -2,16 +2,19 @@ import os
 
 import pytest
 import pytest_asyncio
-from gi.repository import Gdk
+from gaphas.segment import Segment
+from gi.repository import Gdk, GLib
 
 from gaphor import UML
 from gaphor.core.modeling import Diagram
 from gaphor.diagram.general import Box
+from gaphor.diagram.presentation import LinePresentation
 from gaphor.ui.diagrampage import (
     DiagramPage,
     delete_selected_items,
     get_placement_cursor,
     placement_icon_base,
+    popup_model,
 )
 from gaphor.UML import Comment
 from gaphor.UML.diagramitems import ClassItem, PackageItem
@@ -99,3 +102,42 @@ async def test_not_delete_selected_package_owner(
 
     assert not diagram.ownedPresentation
     assert diagram.element is package
+
+
+def test_reset_line(page, diagram):
+    line = diagram.create(LinePresentation)
+    segment = Segment(line, diagram)
+    segment.split((5, 5))
+    segment = Segment(line, diagram)
+    segment.split((10, 10))
+    line.orthogonal = True
+    line.horizontal = True
+
+    assert len(line.handles()) > 2
+
+    page.reset_line(line.id)
+
+    assert len(line.handles()) == 2
+    assert not line.orthogonal
+    assert not line.horizontal
+
+
+def test_popup_model_contains_straighten_line_for_bent_line(diagram):
+    line = diagram.create(LinePresentation)
+    segment = Segment(line, diagram)
+    segment.split((5, 5))
+
+    menu = popup_model(diagram, line)
+
+    assert menu.get_n_items() == 2
+    section = menu.get_item_link(1, "section")
+    assert section is not None
+    label = section.get_item_attribute_value(
+        0, "label", GLib.VariantType.new("s")
+    ).get_string()
+    action = section.get_item_attribute_value(
+        0, "action", GLib.VariantType.new("s")
+    ).get_string()
+
+    assert label == "Straighten Line"
+    assert action == "diagram.reset-line"
