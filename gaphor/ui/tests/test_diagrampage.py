@@ -124,12 +124,27 @@ def test_reset_line(page, diagram):
 
     assert len(line.handles()) > 2
 
-    page.set_context_menu_item_id(line.id)
+    page.set_context_menu_line_context(line.id)
     page.reset_line()
 
     assert len(line.handles()) == 2
     assert not line.orthogonal
     assert not line.horizontal
+
+
+def test_remove_bend_point(page, diagram):
+    line = diagram.create(LinePresentation)
+    segment = Segment(line, diagram)
+    segment.split_segment(0)
+    segment = Segment(line, diagram)
+    segment.split_segment(1)
+
+    assert len(line.handles()) == 4
+
+    page.set_context_menu_line_context(line.id, 1)
+    page.remove_bend_point()
+
+    assert len(line.handles()) == 3
 
 
 def test_reset_line_is_undoable(page, diagram, undo_manager):
@@ -144,7 +159,7 @@ def test_reset_line_is_undoable(page, diagram, undo_manager):
 
     original_handle_count = len(line.handles())
 
-    page.set_context_menu_item_id(line.id)
+    page.set_context_menu_line_context(line.id)
     page.reset_line()
 
     assert len(line.handles()) == 2
@@ -184,3 +199,28 @@ def test_popup_model_contains_straighten_line_for_bent_line(diagram):
 
     assert label == "Straighten Line"
     assert action == "diagram.reset-line"
+
+
+def test_popup_model_contains_remove_bend_point_for_intermediate_handle(diagram):
+    line = diagram.create(LinePresentation)
+    segment = Segment(line, diagram)
+    segment.split((5, 5))
+    segment = Segment(line, diagram)
+    segment.split((10, 10))
+
+    menu = popup_model(diagram, line, 1)
+
+    assert menu.get_n_items() == 2
+    section = menu.get_item_link(1, "section")
+    assert section is not None
+    assert section.get_n_items() == 2
+
+    label = section.get_item_attribute_value(
+        1, "label", GLib.VariantType.new("s")
+    ).get_string()
+    action = section.get_item_attribute_value(
+        1, "action", GLib.VariantType.new("s")
+    ).get_string()
+
+    assert label == "Remove Bend Point"
+    assert action == "diagram.remove-bend-point"
