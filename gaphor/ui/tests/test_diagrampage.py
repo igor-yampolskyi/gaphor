@@ -123,6 +123,37 @@ def test_reset_line(page, diagram):
     assert not line.horizontal
 
 
+def test_reset_line_is_undoable(page, diagram, undo_manager):
+    line = diagram.create(LinePresentation)
+    segment = Segment(line, diagram)
+    segment.split((5, 5))
+    segment = Segment(line, diagram)
+    segment.split((10, 10))
+    line.orthogonal = True
+    line.horizontal = True
+
+    original_handle_count = len(line.handles())
+
+    page.set_context_menu_item_id(line.id)
+    page.reset_line()
+
+    assert len(line.handles()) == 2
+    assert not line.orthogonal
+    assert not line.horizontal
+
+    undo_manager.undo_transaction()
+
+    assert len(line.handles()) == original_handle_count
+    assert line.orthogonal
+    assert line.horizontal
+
+    undo_manager.redo_transaction()
+
+    assert len(line.handles()) == 2
+    assert not line.orthogonal
+    assert not line.horizontal
+
+
 def test_popup_model_contains_straighten_line_for_bent_line(diagram):
     line = diagram.create(LinePresentation)
     segment = Segment(line, diagram)
