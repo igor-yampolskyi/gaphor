@@ -342,6 +342,9 @@ class DiagramPage:
         if self.view:
             self.view.request_update([item])
 
+    def set_context_menu_item_id(self, item_id: str | None) -> None:
+        self._context_menu_item_id = item_id
+
 
 def delete_selected_items(view: GtkView, event_manager):
     with Transaction(event_manager):
@@ -362,7 +365,7 @@ def context_menu_controller(context_menu, page):
         view = ctrl.get_widget()
         item, _handle = default_find_item_and_handle_at_point(view, (x, y))
         subject = item.subject if item and item.subject else page.diagram
-        page._context_menu_item_id = item.id if can_reset_line(item) else None
+        page.set_context_menu_item_id(item.id if can_reset_line(item) else None)
 
         context_menu.set_menu_model(popup_model(subject, item))
 

@@ -115,7 +115,7 @@ def test_reset_line(page, diagram):
 
     assert len(line.handles()) > 2
 
-    page._context_menu_item_id = line.id
+    page.set_context_menu_item_id(line.id)
     page.reset_line()
 
     assert len(line.handles()) == 2
