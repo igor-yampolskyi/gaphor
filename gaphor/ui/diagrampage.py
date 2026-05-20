@@ -99,6 +99,7 @@ class DiagramPage:
         self.diagram_css: Gtk.CssProvider | None = None
 
         self.rubberband_state = RubberbandState()
+        self._context_menu_item_id: str | None = None
         self.context_menu = Gtk.PopoverMenu.new_from_model(popup_model(diagram))
 
         self.event_manager.subscribe(self._on_attribute_updated)
@@ -180,7 +181,7 @@ class DiagramPage:
             )
             if self.view:
                 self.view.add_controller(
-                    context_menu_controller(self.context_menu, self.diagram)
+                    context_menu_controller(self.context_menu, self)
                 )
 
         elif tool_name == "toolbox-magnet":
@@ -321,8 +322,11 @@ class DiagramPage:
         view.request_update(self.diagram.get_all_items())
 
     @action(name="diagram.reset-line", label="Straighten Line")
-    def reset_line(self, item_id: str):
-        item = self.diagram.lookup(item_id)
+    def reset_line(self):
+        if not self._context_menu_item_id:
+            return
+
+        item = self.diagram.lookup(self._context_menu_item_id)
         if not isinstance(item, LinePresentation):
             return
 
@@ -346,7 +350,7 @@ def delete_selected_items(view: GtkView, event_manager):
             i.unlink()
 
 
-def context_menu_controller(context_menu, diagram):
+def context_menu_controller(context_menu, page):
     def on_show_popup(ctrl, n_press, x, y):
         if (
             Transaction.in_transaction()
@@ -357,7 +361,8 @@ def context_menu_controller(context_menu, diagram):
 
         view = ctrl.get_widget()
         item, _handle = default_find_item_and_handle_at_point(view, (x, y))
-        subject = item.subject if item and item.subject else diagram
+        subject = item.subject if item and item.subject else page.diagram
+        page._context_menu_item_id = item.id if can_reset_line(item) else None
 
         context_menu.set_menu_model(popup_model(subject, item))
 
@@ -391,15 +396,15 @@ def popup_model(element, item=None):
     menu_item.set_attribute_value("target", GLib.Variant.new_string(element.id))
 
     part.append_item(menu_item)
+    model.append_section(None, part)
 
     if can_reset_line(item):
+        part = Gio.Menu.new()
         menu_item = Gio.MenuItem.new(
             gettext("Straighten Line"),
             "diagram.reset-line",
         )
-        menu_item.set_attribute_value("target", GLib.Variant.new_string(item.id))
         part.append_item(menu_item)
-
-    model.append_section(None, part)
+        model.append_section(None, part)
 
     return model

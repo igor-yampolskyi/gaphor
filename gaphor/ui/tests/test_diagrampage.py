@@ -115,7 +115,8 @@ def test_reset_line(page, diagram):
 
     assert len(line.handles()) > 2
 
-    page.reset_line(line.id)
+    page._context_menu_item_id = line.id
+    page.reset_line()
 
     assert len(line.handles()) == 2
     assert not line.orthogonal
@@ -129,15 +130,15 @@ def test_popup_model_contains_straighten_line_for_bent_line(diagram):
 
     menu = popup_model(diagram, line)
 
-    assert menu.get_n_items() == 1
-    section = menu.get_item_link(0, "section")
+    assert menu.get_n_items() == 2
+    section = menu.get_item_link(1, "section")
     assert section is not None
-    assert section.get_n_items() == 2
+    assert section.get_n_items() == 1
     label = section.get_item_attribute_value(
-        1, "label", GLib.VariantType.new("s")
+        0, "label", GLib.VariantType.new("s")
     ).get_string()
     action = section.get_item_attribute_value(
-        1, "action", GLib.VariantType.new("s")
+        0, "action", GLib.VariantType.new("s")
     ).get_string()
 
     assert label == "Straighten Line"
