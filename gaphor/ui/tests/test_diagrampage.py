@@ -9,6 +9,7 @@ from gaphor import UML
 from gaphor.core.modeling import Diagram
 from gaphor.diagram.general import Box
 from gaphor.diagram.presentation import LinePresentation
+from gaphor.services.undomanager import UndoManager
 from gaphor.ui.diagrampage import (
     DiagramPage,
     delete_selected_items,
@@ -19,6 +20,13 @@ from gaphor.ui.diagrampage import (
 from gaphor.UML import Comment
 from gaphor.UML.diagramitems import ClassItem, PackageItem
 from gaphor.UML.general.comment import CommentItem
+
+
+@pytest.fixture
+def undo_manager(event_manager, element_factory):
+    undo_manager = UndoManager(event_manager, element_factory)
+    yield undo_manager
+    undo_manager.shutdown()
 
 
 @pytest_asyncio.fixture
