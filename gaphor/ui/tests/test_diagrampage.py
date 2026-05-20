@@ -6,6 +6,7 @@ from gaphas.segment import Segment
 from gi.repository import Gdk, GLib
 
 from gaphor import UML
+from gaphor.core import Transaction
 from gaphor.core.modeling import Diagram
 from gaphor.diagram.general import Box
 from gaphor.diagram.presentation import LinePresentation
@@ -132,13 +133,14 @@ def test_reset_line(page, diagram):
 
 
 def test_reset_line_is_undoable(page, diagram, undo_manager):
-    line = diagram.create(LinePresentation)
-    segment = Segment(line, diagram)
-    segment.split((5, 5))
-    segment = Segment(line, diagram)
-    segment.split((10, 10))
-    line.orthogonal = True
-    line.horizontal = True
+    with Transaction(page.event_manager):
+        line = diagram.create(LinePresentation)
+        segment = Segment(line, diagram)
+        segment.split((5, 5))
+        segment = Segment(line, diagram)
+        segment.split((10, 10))
+        line.orthogonal = True
+        line.horizontal = True
 
     original_handle_count = len(line.handles())
 
