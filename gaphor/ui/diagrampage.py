@@ -4,8 +4,7 @@ import logging
 
 from gaphas.guide import GuidePainter
 from gaphas.painter import FreeHandPainter, HandlePainter, PainterChain
-from gaphas.segment import Segment
-from gaphas.segment import LineSegmentPainter
+from gaphas.segment import LineSegmentPainter, Segment
 from gaphas.tool.itemtool import default_find_item_and_handle_at_point
 from gaphas.tool.rubberband import RubberbandPainter, RubberbandState
 from gaphas.view import GtkView
@@ -20,9 +19,9 @@ from gaphor.core.modeling.event import (
     StyleSheetUpdated,
 )
 from gaphor.core.styling import PrefersColorScheme
-from gaphor.diagram.presentation import LinePresentation
 from gaphor.diagram.diagramtoolbox import get_tool_def, tooliter
 from gaphor.diagram.painter import DiagramTypePainter, ItemPainter
+from gaphor.diagram.presentation import LinePresentation
 from gaphor.diagram.tools import (
     apply_default_tool_set,
     apply_magnet_tool_set,
@@ -360,9 +359,7 @@ def context_menu_controller(context_menu, diagram):
         item, _handle = default_find_item_and_handle_at_point(view, (x, y))
         subject = item.subject if item and item.subject else diagram
 
-        context_menu.set_menu_model(
-            popup_model(subject, item)
-        )
+        context_menu.set_menu_model(popup_model(subject, item))
 
         gdk_rect = Gdk.Rectangle()
         gdk_rect.x = x
