@@ -391,16 +391,15 @@ def popup_model(element, item=None):
     menu_item.set_attribute_value("target", GLib.Variant.new_string(element.id))
 
     part.append_item(menu_item)
-    model.append_section(None, part)
 
     if can_reset_line(item):
-        part = Gio.Menu.new()
         menu_item = Gio.MenuItem.new(
             gettext("Straighten Line"),
             "diagram.reset-line",
         )
         menu_item.set_attribute_value("target", GLib.Variant.new_string(item.id))
         part.append_item(menu_item)
-        model.append_section(None, part)
+
+    model.append_section(None, part)
 
     return model
