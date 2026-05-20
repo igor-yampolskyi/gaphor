@@ -327,11 +327,11 @@ class DiagramPage:
             return
 
         with Transaction(self.event_manager):
+            item.orthogonal = False
+            item.horizontal = False
             while len(item.handles()) > 2:
                 segment = Segment(item, self.diagram)
                 segment.merge_segment(0)
-            item.orthogonal = False
-            item.horizontal = False
             item.request_update()
 
         self.diagram.update({item})
