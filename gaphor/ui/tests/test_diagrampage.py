@@ -150,6 +150,28 @@ def test_remove_bend_point(page, diagram):
     assert len(line.handles()) == 3
 
 
+def test_make_line_vertical(page, diagram):
+    line = diagram.create(LinePresentation)
+    line.head.pos = (10, 20)
+    line.tail.pos = (100, 80)
+
+    page.make_line_vertical(line.id)
+
+    assert line.head.pos.tuple() == (10, 20)
+    assert line.tail.pos.tuple() == (10, 80)
+
+
+def test_make_line_horizontal(page, diagram):
+    line = diagram.create(LinePresentation)
+    line.head.pos = (10, 20)
+    line.tail.pos = (100, 80)
+
+    page.make_line_horizontal(line.id)
+
+    assert line.head.pos.tuple() == (10, 20)
+    assert line.tail.pos.tuple() == (100, 20)
+
+
 def test_reset_line_is_undoable(page, diagram, undo_manager):
     with Transaction(page.event_manager):
         line = diagram.create(LinePresentation)
@@ -223,6 +245,64 @@ def test_remove_bend_point_is_undoable(page, diagram, undo_manager):
     ]
 
 
+def test_make_line_vertical_is_undoable(page, diagram, undo_manager):
+    with Transaction(page.event_manager):
+        line = diagram.create(LinePresentation)
+        line.head.pos = (10, 20)
+        line.tail.pos = (100, 80)
+
+    original_handle_positions = [handle.pos.tuple() for handle in line.handles()]
+
+    page.make_line_vertical(line.id)
+
+    assert [handle.pos.tuple() for handle in line.handles()] == [
+        original_handle_positions[0],
+        (10, 80),
+    ]
+
+    undo_manager.undo_transaction()
+
+    assert [
+        handle.pos.tuple() for handle in line.handles()
+    ] == original_handle_positions
+
+    undo_manager.redo_transaction()
+
+    assert [handle.pos.tuple() for handle in line.handles()] == [
+        original_handle_positions[0],
+        (10, 80),
+    ]
+
+
+def test_make_line_horizontal_is_undoable(page, diagram, undo_manager):
+    with Transaction(page.event_manager):
+        line = diagram.create(LinePresentation)
+        line.head.pos = (10, 20)
+        line.tail.pos = (100, 80)
+
+    original_handle_positions = [handle.pos.tuple() for handle in line.handles()]
+
+    page.make_line_horizontal(line.id)
+
+    assert [handle.pos.tuple() for handle in line.handles()] == [
+        original_handle_positions[0],
+        (100, 20),
+    ]
+
+    undo_manager.undo_transaction()
+
+    assert [
+        handle.pos.tuple() for handle in line.handles()
+    ] == original_handle_positions
+
+    undo_manager.redo_transaction()
+
+    assert [handle.pos.tuple() for handle in line.handles()] == [
+        original_handle_positions[0],
+        (100, 20),
+    ]
+
+
 def test_popup_model_contains_straighten_line_for_bent_line(diagram):
     line = diagram.create(LinePresentation)
     segment = Segment(line, diagram)
@@ -276,3 +356,54 @@ def test_popup_model_contains_remove_bend_point_for_intermediate_handle(diagram)
     assert label == "Remove Bend Point"
     assert action == "diagram.remove-bend-point"
     assert target == remove_bend_point_target(line.id, 1)
+
+
+def test_popup_model_contains_axis_alignment_for_diagonal_line(diagram):
+    line = diagram.create(LinePresentation)
+    line.head.pos = (10, 20)
+    line.tail.pos = (100, 80)
+
+    menu = popup_model(diagram, line)
+
+    assert menu.get_n_items() == 2
+    section = menu.get_item_link(1, "section")
+    assert section is not None
+    assert section.get_n_items() == 2
+
+    label = section.get_item_attribute_value(
+        0, "label", GLib.VariantType.new("s")
+    ).get_string()
+    action = section.get_item_attribute_value(
+        0, "action", GLib.VariantType.new("s")
+    ).get_string()
+    target = section.get_item_attribute_value(
+        0, "target", GLib.VariantType.new("s")
+    ).get_string()
+
+    assert label == "Make Vertical"
+    assert action == "diagram.make-line-vertical"
+    assert target == line.id
+
+    label = section.get_item_attribute_value(
+        1, "label", GLib.VariantType.new("s")
+    ).get_string()
+    action = section.get_item_attribute_value(
+        1, "action", GLib.VariantType.new("s")
+    ).get_string()
+    target = section.get_item_attribute_value(
+        1, "target", GLib.VariantType.new("s")
+    ).get_string()
+
+    assert label == "Make Horizontal"
+    assert action == "diagram.make-line-horizontal"
+    assert target == line.id
+
+
+def test_popup_model_does_not_contain_axis_alignment_for_axis_aligned_line(diagram):
+    line = diagram.create(LinePresentation)
+    line.head.pos = (10, 20)
+    line.tail.pos = (10, 80)
+
+    menu = popup_model(diagram, line)
+
+    assert menu.get_n_items() == 1

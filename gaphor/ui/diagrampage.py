@@ -364,6 +364,35 @@ class DiagramPage:
         if self.view:
             self.view.request_update([item])
 
+    @action(name="diagram.make-line-vertical", label="Make Vertical")
+    def make_line_vertical(self, item_id: str):
+        self.align_line(item_id, "vertical")
+
+    @action(name="diagram.make-line-horizontal", label="Make Horizontal")
+    def make_line_horizontal(self, item_id: str):
+        self.align_line(item_id, "horizontal")
+
+    def align_line(self, item_id: str, orientation: str):
+        item = self.diagram.lookup(item_id)
+        if not can_align_line(item):
+            return
+
+        head_x, head_y = item.head.pos.tuple()
+        tail_x, tail_y = item.tail.pos.tuple()
+
+        with Transaction(self.event_manager):
+            item.orthogonal = False
+            item.horizontal = False
+            if orientation == "vertical":
+                item.tail.pos = (head_x, tail_y)
+            else:
+                item.tail.pos = (tail_x, head_y)
+            item.request_update()
+
+        self.diagram.update({item})
+        if self.view:
+            self.view.request_update([item])
+
 
 def delete_selected_items(view: GtkView, event_manager):
     with Transaction(event_manager):
@@ -422,6 +451,15 @@ def can_remove_bend_point(item, handle_index) -> bool:
     )
 
 
+def can_align_line(item) -> bool:
+    if not isinstance(item, LinePresentation) or len(item.handles()) != 2:
+        return False
+
+    head_x, head_y = item.head.pos.tuple()
+    tail_x, tail_y = item.tail.pos.tuple()
+    return bool(head_x != tail_x and head_y != tail_y)
+
+
 def remove_bend_point_target(item_id: str, handle_index: int) -> str:
     return f"{item_id}:{handle_index}"
 
@@ -466,6 +504,16 @@ def popup_model(element, item=None, handle_index=None):
                     remove_bend_point_target(item.id, handle_index)
                 ),
             )
+            part.append_item(menu_item)
+        model.append_section(None, part)
+    elif can_align_line(item):
+        part = Gio.Menu.new()
+        for label, action_name in (
+            (gettext("Make Vertical"), "diagram.make-line-vertical"),
+            (gettext("Make Horizontal"), "diagram.make-line-horizontal"),
+        ):
+            menu_item = Gio.MenuItem.new(label, action_name)
+            menu_item.set_attribute_value("target", GLib.Variant.new_string(item.id))
             part.append_item(menu_item)
         model.append_section(None, part)
 
