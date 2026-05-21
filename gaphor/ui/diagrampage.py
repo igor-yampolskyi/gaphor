@@ -408,8 +408,9 @@ def can_reset_line(item) -> bool:
 
 
 def handle_index_for_item(item, handle) -> int | None:
-    if item and handle and hasattr(item, "handles") and handle in item.handles():
-        return item.handles().index(handle)
+    if isinstance(item, LinePresentation) and handle and handle in item.handles():
+        handle_index: int = item.handles().index(handle)
+        return handle_index
     return None
 
 
