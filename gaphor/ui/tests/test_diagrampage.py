@@ -134,10 +134,14 @@ def test_reset_line(page, diagram):
 
 def test_remove_bend_point(page, diagram):
     line = diagram.create(LinePresentation)
+    line.head.pos = (0, 0)
+    line.tail.pos = (100, 0)
     segment = Segment(line, diagram)
     segment.split_segment(0)
+    line.handles()[1].pos = (40, 30)
     segment = Segment(line, diagram)
     segment.split_segment(1)
+    line.handles()[2].pos = (80, 30)
 
     assert len(line.handles()) == 4
 
@@ -150,14 +154,19 @@ def test_remove_bend_point(page, diagram):
 def test_reset_line_is_undoable(page, diagram, undo_manager):
     with Transaction(page.event_manager):
         line = diagram.create(LinePresentation)
+        line.head.pos = (0, 0)
+        line.tail.pos = (100, 0)
         segment = Segment(line, diagram)
-        segment.split((5, 5))
+        segment.split_segment(0)
+        line.handles()[1].pos = (40, 30)
         segment = Segment(line, diagram)
-        segment.split((10, 10))
+        segment.split_segment(1)
+        line.handles()[2].pos = (80, 30)
         line.orthogonal = True
         line.horizontal = True
 
     original_handle_count = len(line.handles())
+    original_handle_positions = [handle.pos.tuple() for handle in line.handles()]
 
     page.set_context_menu_line_context(line.id)
     page.reset_line()
@@ -169,6 +178,9 @@ def test_reset_line_is_undoable(page, diagram, undo_manager):
     undo_manager.undo_transaction()
 
     assert len(line.handles()) == original_handle_count
+    assert [
+        handle.pos.tuple() for handle in line.handles()
+    ] == original_handle_positions
     assert line.orthogonal
     assert line.horizontal
 
@@ -177,6 +189,41 @@ def test_reset_line_is_undoable(page, diagram, undo_manager):
     assert len(line.handles()) == 2
     assert not line.orthogonal
     assert not line.horizontal
+
+
+def test_remove_bend_point_is_undoable(page, diagram, undo_manager):
+    with Transaction(page.event_manager):
+        line = diagram.create(LinePresentation)
+        line.head.pos = (0, 0)
+        line.tail.pos = (100, 0)
+        segment = Segment(line, diagram)
+        segment.split_segment(0)
+        line.handles()[1].pos = (40, 30)
+        segment = Segment(line, diagram)
+        segment.split_segment(1)
+        line.handles()[2].pos = (80, 30)
+
+    original_handle_positions = [handle.pos.tuple() for handle in line.handles()]
+
+    page.set_context_menu_line_context(line.id, 1)
+    page.remove_bend_point()
+
+    assert len(line.handles()) == 3
+
+    undo_manager.undo_transaction()
+
+    assert [
+        handle.pos.tuple() for handle in line.handles()
+    ] == original_handle_positions
+
+    undo_manager.redo_transaction()
+
+    assert len(line.handles()) == 3
+    assert [handle.pos.tuple() for handle in line.handles()] == [
+        original_handle_positions[0],
+        original_handle_positions[2],
+        original_handle_positions[3],
+    ]
 
 
 def test_popup_model_contains_straighten_line_for_bent_line(diagram):

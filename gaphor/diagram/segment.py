@@ -19,7 +19,8 @@ class PresentationSegment(LineSegment):
         self.temporary_disconnect()
         deleted_handles, deleted_ports = super().merge_segment(segment, count)
         line = self.item
-        line.handle(LineMergeSegmentEvent(line, segment, count))
+        handle_positions = [handle.pos.tuple() for handle in deleted_handles]
+        line.handle(LineMergeSegmentEvent(line, segment, count, handle_positions))
         return deleted_handles, deleted_ports
 
     def temporary_disconnect(self):
@@ -59,11 +60,17 @@ class LineSplitSegmentEvent(RevertibleEvent):
 
 
 class LineMergeSegmentEvent(RevertibleEvent):
-    def __init__(self, element, segment, count):
+    def __init__(self, element, segment, count, handle_positions=None):
         super().__init__(element)
         self.segment = segment
         self.count = count
+        self.handle_positions = handle_positions
 
     def revert(self, target):
         segment = Segment(target, target.diagram)
         segment.split_segment(self.segment, self.count)
+        if self.handle_positions:
+            handles = target.handles()[self.segment + 1 : self.segment + self.count]
+            for handle, position in zip(handles, self.handle_positions, strict=False):
+                handle.pos = position
+            target.request_update()

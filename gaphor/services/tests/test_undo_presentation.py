@@ -281,11 +281,15 @@ def test_line_split_segment(diagram, undo_manager, event_manager):
 def test_line_merge_segment(diagram, undo_manager, event_manager):
     with Transaction(event_manager):
         line = diagram.create(LinePresentation)
+        line.head.pos = (0, 0)
+        line.tail.pos = (100, 0)
         segment = Segment(line, diagram)
-        segment.split((5, 5))
+        segment.split_segment(0)
+        line.handles()[1].pos = (40, 30)
 
     head_handle = line.head
     tail_handle = line.tail
+    handle_positions = [handle.pos.tuple() for handle in line.handles()]
 
     with Transaction(event_manager):
         segment = Segment(line, diagram)
@@ -298,6 +302,7 @@ def test_line_merge_segment(diagram, undo_manager, event_manager):
     undo_manager.undo_transaction()
 
     assert len(line.handles()) == 3
+    assert [handle.pos.tuple() for handle in line.handles()] == handle_positions
     assert line.head is head_handle
     assert line.tail is tail_handle
 
