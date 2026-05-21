@@ -17,6 +17,7 @@ from gaphor.ui.diagrampage import (
     get_placement_cursor,
     placement_icon_base,
     popup_model,
+    remove_bend_point_target,
 )
 from gaphor.UML import Comment
 from gaphor.UML.diagramitems import ClassItem, PackageItem
@@ -124,8 +125,7 @@ def test_reset_line(page, diagram):
 
     assert len(line.handles()) > 2
 
-    page.set_context_menu_line_context(line.id)
-    page.reset_line()
+    page.reset_line(line.id)
 
     assert len(line.handles()) == 2
     assert not line.orthogonal
@@ -145,8 +145,7 @@ def test_remove_bend_point(page, diagram):
 
     assert len(line.handles()) == 4
 
-    page.set_context_menu_line_context(line.id, 1)
-    page.remove_bend_point()
+    page.remove_bend_point(remove_bend_point_target(line.id, 1))
 
     assert len(line.handles()) == 3
 
@@ -168,8 +167,7 @@ def test_reset_line_is_undoable(page, diagram, undo_manager):
     original_handle_count = len(line.handles())
     original_handle_positions = [handle.pos.tuple() for handle in line.handles()]
 
-    page.set_context_menu_line_context(line.id)
-    page.reset_line()
+    page.reset_line(line.id)
 
     assert len(line.handles()) == 2
     assert not line.orthogonal
@@ -205,8 +203,7 @@ def test_remove_bend_point_is_undoable(page, diagram, undo_manager):
 
     original_handle_positions = [handle.pos.tuple() for handle in line.handles()]
 
-    page.set_context_menu_line_context(line.id, 1)
-    page.remove_bend_point()
+    page.remove_bend_point(remove_bend_point_target(line.id, 1))
 
     assert len(line.handles()) == 3
 
@@ -243,9 +240,13 @@ def test_popup_model_contains_straighten_line_for_bent_line(diagram):
     action = section.get_item_attribute_value(
         0, "action", GLib.VariantType.new("s")
     ).get_string()
+    target = section.get_item_attribute_value(
+        0, "target", GLib.VariantType.new("s")
+    ).get_string()
 
     assert label == "Straighten Line"
     assert action == "diagram.reset-line"
+    assert target == line.id
 
 
 def test_popup_model_contains_remove_bend_point_for_intermediate_handle(diagram):
@@ -268,6 +269,10 @@ def test_popup_model_contains_remove_bend_point_for_intermediate_handle(diagram)
     action = section.get_item_attribute_value(
         1, "action", GLib.VariantType.new("s")
     ).get_string()
+    target = section.get_item_attribute_value(
+        1, "target", GLib.VariantType.new("s")
+    ).get_string()
 
     assert label == "Remove Bend Point"
     assert action == "diagram.remove-bend-point"
+    assert target == remove_bend_point_target(line.id, 1)

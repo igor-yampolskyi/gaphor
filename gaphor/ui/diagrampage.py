@@ -99,8 +99,6 @@ class DiagramPage:
         self.diagram_css: Gtk.CssProvider | None = None
 
         self.rubberband_state = RubberbandState()
-        self._context_menu_item_id: str | None = None
-        self._context_menu_handle_index: int | None = None
         self.context_menu = Gtk.PopoverMenu.new_from_model(popup_model(diagram))
 
         self.event_manager.subscribe(self._on_attribute_updated)
@@ -323,11 +321,8 @@ class DiagramPage:
         view.request_update(self.diagram.get_all_items())
 
     @action(name="diagram.reset-line", label="Straighten Line")
-    def reset_line(self):
-        if not self._context_menu_item_id:
-            return
-
-        item = self.diagram.lookup(self._context_menu_item_id)
+    def reset_line(self, item_id: str):
+        item = self.diagram.lookup(item_id)
         if not isinstance(item, LinePresentation):
             return
 
@@ -344,12 +339,12 @@ class DiagramPage:
             self.view.request_update([item])
 
     @action(name="diagram.remove-bend-point", label="Remove Bend Point")
-    def remove_bend_point(self):
-        if not self._context_menu_item_id or self._context_menu_handle_index is None:
+    def remove_bend_point(self, target: str):
+        item_id, handle_index = parse_remove_bend_point_target(target)
+        if item_id is None or handle_index is None:
             return
 
-        item = self.diagram.lookup(self._context_menu_item_id)
-        handle_index = self._context_menu_handle_index
+        item = self.diagram.lookup(item_id)
         if (
             not isinstance(item, LinePresentation)
             or handle_index <= 0
@@ -368,14 +363,6 @@ class DiagramPage:
         self.diagram.update({item})
         if self.view:
             self.view.request_update([item])
-
-    def set_context_menu_line_context(
-        self,
-        item_id: str | None,
-        handle_index: int | None = None,
-    ) -> None:
-        self._context_menu_item_id = item_id
-        self._context_menu_handle_index = handle_index
 
 
 def delete_selected_items(view: GtkView, event_manager):
@@ -397,15 +384,7 @@ def context_menu_controller(context_menu, page):
         view = ctrl.get_widget()
         item, handle = default_find_item_and_handle_at_point(view, (x, y))
         subject = item.subject if item and item.subject else page.diagram
-        handle_index = (
-            item.handles().index(handle)
-            if item and handle and hasattr(item, "handles") and handle in item.handles()
-            else None
-        )
-        page.set_context_menu_line_context(
-            item.id if item and isinstance(item, LinePresentation) else None,
-            handle_index,
-        )
+        handle_index = handle_index_for_item(item, handle)
 
         context_menu.set_menu_model(popup_model(subject, item, handle_index))
 
@@ -428,12 +407,30 @@ def can_reset_line(item) -> bool:
     return isinstance(item, LinePresentation) and len(item.handles()) > 2
 
 
+def handle_index_for_item(item, handle) -> int | None:
+    if item and handle and hasattr(item, "handles") and handle in item.handles():
+        return item.handles().index(handle)
+    return None
+
+
 def can_remove_bend_point(item, handle_index) -> bool:
     return (
         isinstance(item, LinePresentation)
         and handle_index is not None
         and 0 < handle_index < len(item.handles()) - 1
     )
+
+
+def remove_bend_point_target(item_id: str, handle_index: int) -> str:
+    return f"{item_id}:{handle_index}"
+
+
+def parse_remove_bend_point_target(target: str) -> tuple[str | None, int | None]:
+    try:
+        item_id, handle_index = target.rsplit(":", 1)
+        return item_id, int(handle_index)
+    except ValueError:
+        return None, None
 
 
 def popup_model(element, item=None, handle_index=None):
@@ -455,11 +452,18 @@ def popup_model(element, item=None, handle_index=None):
             gettext("Straighten Line"),
             "diagram.reset-line",
         )
+        menu_item.set_attribute_value("target", GLib.Variant.new_string(item.id))
         part.append_item(menu_item)
         if can_remove_bend_point(item, handle_index):
             menu_item = Gio.MenuItem.new(
                 gettext("Remove Bend Point"),
                 "diagram.remove-bend-point",
+            )
+            menu_item.set_attribute_value(
+                "target",
+                GLib.Variant.new_string(
+                    remove_bend_point_target(item.id, handle_index)
+                ),
             )
             part.append_item(menu_item)
         model.append_section(None, part)
