@@ -2,7 +2,10 @@ import functools
 import importlib
 import logging
 
+from gaphas.connector import ConnectionSink
+from gaphas.connector import Connector as ConnectorAspect
 from gaphas.guide import GuidePainter
+from gaphas.item import matrix_i2i
 from gaphas.painter import FreeHandPainter, HandlePainter, PainterChain
 from gaphas.segment import LineSegmentPainter, Segment
 from gaphas.tool.itemtool import default_find_item_and_handle_at_point
@@ -374,19 +377,25 @@ class DiagramPage:
 
     def align_line(self, item_id: str, orientation: str):
         item = self.diagram.lookup(item_id)
-        if not can_align_line(item):
+        if not can_align_line(item, orientation):
             return
 
-        head_x, head_y = item.head.pos.tuple()
-        tail_x, tail_y = item.tail.pos.tuple()
+        coordinate = alignment_coordinate(item, orientation)
+        if coordinate is None:
+            return
+
+        positions = [
+            (handle, aligned_handle_position(item, handle, orientation, coordinate))
+            for handle in (item.head, item.tail)
+        ]
 
         with Transaction(self.event_manager):
             item.orthogonal = False
             item.horizontal = False
-            if orientation == "vertical":
-                item.tail.pos = (head_x, tail_y)
-            else:
-                item.tail.pos = (tail_x, head_y)
+            for handle, position in positions:
+                handle.pos = position
+            for handle, _position in positions:
+                reconnect_connected_handle(item, handle)
             item.request_update()
 
         self.diagram.update({item})
@@ -451,13 +460,87 @@ def can_remove_bend_point(item, handle_index) -> bool:
     )
 
 
-def can_align_line(item) -> bool:
+def can_align_line(item, orientation: str | None = None) -> bool:
     if not isinstance(item, LinePresentation) or len(item.handles()) != 2:
         return False
 
     head_x, head_y = item.head.pos.tuple()
     tail_x, tail_y = item.tail.pos.tuple()
-    return bool(head_x != tail_x and head_y != tail_y)
+    if head_x == tail_x or head_y == tail_y:
+        return False
+
+    if orientation is not None:
+        return alignment_coordinate(item, orientation) is not None
+
+    return any(
+        alignment_coordinate(item, line_orientation) is not None
+        for line_orientation in ("vertical", "horizontal")
+    )
+
+
+def alignment_coordinate(item, orientation: str) -> float | None:
+    head_x, head_y = item.head.pos.tuple()
+    preferred = float(head_x if orientation == "vertical" else head_y)
+    ranges = [
+        connected_item_axis_range(item, handle, orientation)
+        for handle in (item.head, item.tail)
+        if item.diagram.connections.get_connection(handle)
+    ]
+
+    if not ranges:
+        return preferred
+
+    lower_bound = max(axis_range[0] for axis_range in ranges)
+    upper_bound = min(axis_range[1] for axis_range in ranges)
+    if lower_bound > upper_bound:
+        return None
+
+    return min(max(preferred, lower_bound), upper_bound)
+
+
+def connected_item_axis_range(item, handle, orientation: str) -> tuple[float, float]:
+    cinfo = item.diagram.connections.get_connection(handle)
+    assert cinfo
+
+    left, top, right, bottom = connected_item_bounds(item, cinfo.connected)
+    return (left, right) if orientation == "vertical" else (top, bottom)
+
+
+def aligned_handle_position(item, handle, orientation: str, coordinate: float):
+    cinfo = item.diagram.connections.get_connection(handle)
+    if not cinfo:
+        x, y = handle.pos.tuple()
+        return (coordinate, y) if orientation == "vertical" else (x, coordinate)
+
+    left, top, right, bottom = connected_item_bounds(item, cinfo.connected)
+    other_x, other_y = item.opposite(handle).pos.tuple()
+
+    if orientation == "vertical":
+        center_y = (top + bottom) / 2
+        y = bottom if other_y > center_y else top
+        return coordinate, y
+
+    center_x = (left + right) / 2
+    x = right if other_x > center_x else left
+    return x, coordinate
+
+
+def connected_item_bounds(item, connected) -> tuple[float, float, float, float]:
+    matrix = matrix_i2i(connected, item)
+    points = [matrix.transform_point(*handle.pos) for handle in connected.handles()]
+    xs = [point[0] for point in points]
+    ys = [point[1] for point in points]
+    return min(xs), min(ys), max(xs), max(ys)
+
+
+def reconnect_connected_handle(item, handle):
+    cinfo = item.diagram.connections.get_connection(handle)
+    if not cinfo:
+        return
+
+    sink = ConnectionSink(cinfo.connected, distance=float("inf"))
+    connector = ConnectorAspect(item, handle, item.diagram.connections)
+    connector.reconnect_handle(sink)
 
 
 def remove_bend_point_target(item_id: str, handle_index: int) -> str:
@@ -508,10 +591,12 @@ def popup_model(element, item=None, handle_index=None):
         model.append_section(None, part)
     elif can_align_line(item):
         part = Gio.Menu.new()
-        for label, action_name in (
-            (gettext("Make Vertical"), "diagram.make-line-vertical"),
-            (gettext("Make Horizontal"), "diagram.make-line-horizontal"),
+        for label, action_name, orientation in (
+            (gettext("Make Vertical"), "diagram.make-line-vertical", "vertical"),
+            (gettext("Make Horizontal"), "diagram.make-line-horizontal", "horizontal"),
         ):
+            if not can_align_line(item, orientation):
+                continue
             menu_item = Gio.MenuItem.new(label, action_name)
             menu_item.set_attribute_value("target", GLib.Variant.new_string(item.id))
             part.append_item(menu_item)

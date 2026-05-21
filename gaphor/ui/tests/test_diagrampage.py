@@ -9,7 +9,9 @@ from gaphor import UML
 from gaphor.core import Transaction
 from gaphor.core.modeling import Diagram
 from gaphor.diagram.general import Box
+from gaphor.diagram.general import Line as GeneralLine
 from gaphor.diagram.presentation import LinePresentation
+from gaphor.diagram.tests.fixtures import connect, get_connected
 from gaphor.services.undomanager import UndoManager
 from gaphor.ui.diagrampage import (
     DiagramPage,
@@ -170,6 +172,52 @@ def test_make_line_horizontal(page, diagram):
 
     assert line.head.pos.tuple() == (10, 20)
     assert line.tail.pos.tuple() == (100, 20)
+
+
+def test_make_line_horizontal_with_both_ends_connected(page, create):
+    supplier = create(Box)
+    client = create(Box)
+    line = create(GeneralLine)
+    supplier.handles()[0].pos = (0, 0)
+    supplier.width = 100
+    supplier.height = 80
+    client.handles()[0].pos = (200, 20)
+    client.width = 100
+    client.height = 80
+    line.diagram.connections.solve()
+    line.head.pos = (100, 10)
+    line.tail.pos = (200, 70)
+    connect(line, line.head, supplier)
+    connect(line, line.tail, client)
+
+    page.make_line_horizontal(line.id)
+
+    assert get_connected(line, line.head) is supplier
+    assert get_connected(line, line.tail) is client
+    assert line.head.pos.y == line.tail.pos.y
+
+
+def test_make_line_vertical_with_both_ends_connected(page, create):
+    supplier = create(Box)
+    client = create(Box)
+    line = create(GeneralLine)
+    supplier.handles()[0].pos = (0, 0)
+    supplier.width = 80
+    supplier.height = 100
+    client.handles()[0].pos = (20, 200)
+    client.width = 80
+    client.height = 100
+    line.diagram.connections.solve()
+    line.head.pos = (10, 100)
+    line.tail.pos = (70, 200)
+    connect(line, line.head, supplier)
+    connect(line, line.tail, client)
+
+    page.make_line_vertical(line.id)
+
+    assert get_connected(line, line.head) is supplier
+    assert get_connected(line, line.tail) is client
+    assert line.head.pos.x == line.tail.pos.x
 
 
 def test_reset_line_is_undoable(page, diagram, undo_manager):
