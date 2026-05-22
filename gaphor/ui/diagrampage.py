@@ -24,7 +24,7 @@ from gaphor.core.modeling.event import (
 from gaphor.core.styling import PrefersColorScheme
 from gaphor.diagram.diagramtoolbox import get_tool_def, tooliter
 from gaphor.diagram.painter import DiagramTypePainter, ItemPainter
-from gaphor.diagram.presentation import LinePresentation
+from gaphor.diagram.presentation import ElementPresentation, LinePresentation
 from gaphor.diagram.tools import (
     apply_default_tool_set,
     apply_magnet_tool_set,
@@ -424,7 +424,9 @@ def context_menu_controller(context_menu, page):
         subject = item.subject if item and item.subject else page.diagram
         handle_index = handle_index_for_item(item, handle)
 
-        context_menu.set_menu_model(popup_model(subject, item, handle_index))
+        context_menu.set_menu_model(
+            popup_model(subject, item, handle_index, view.selection.selected_items)
+        )
 
         gdk_rect = Gdk.Rectangle()
         gdk_rect.x = x
@@ -475,6 +477,17 @@ def can_align_line(item, orientation: str | None = None) -> bool:
     return any(
         alignment_coordinate(item, line_orientation) is not None
         for line_orientation in ("vertical", "horizontal")
+    )
+
+
+def can_align_selected_items(selected_items) -> bool:
+    return (
+        sum(
+            1
+            for selected_item in selected_items
+            if isinstance(selected_item, ElementPresentation)
+        )
+        > 1
     )
 
 
@@ -555,7 +568,7 @@ def parse_remove_bend_point_target(target: str) -> tuple[str | None, int | None]
         return None, None
 
 
-def popup_model(element, item=None, handle_index=None):
+def popup_model(element, item=None, handle_index=None, selected_items=()):
     model = Gio.Menu.new()
     part = Gio.Menu.new()
 
@@ -602,4 +615,36 @@ def popup_model(element, item=None, handle_index=None):
             part.append_item(menu_item)
         model.append_section(None, part)
 
+    if can_align_selected_items(selected_items):
+        append_alignment_actions(model)
+
     return model
+
+
+def append_alignment_actions(model: Gio.Menu) -> None:
+    for action_group in (
+        (
+            (gettext("Align Left"), "left"),
+            (gettext("Align Right"), "right"),
+            (gettext("Align Vertical Center"), "vertical-center"),
+        ),
+        (
+            (gettext("Align Top"), "top"),
+            (gettext("Align Bottom"), "bottom"),
+            (gettext("Align Horizontal Center"), "horizontal-center"),
+        ),
+        (
+            (gettext("Max Width"), "max-width"),
+            (gettext("Max Height"), "max-height"),
+            (gettext("Max Size"), "max-size"),
+            (gettext("Min Width"), "min-width"),
+            (gettext("Min Height"), "min-height"),
+            (gettext("Min Size"), "min-size"),
+        ),
+    ):
+        part = Gio.Menu.new()
+        for label, target in action_group:
+            menu_item = Gio.MenuItem.new(label, "win.diagram-align")
+            menu_item.set_attribute_value("target", GLib.Variant.new_string(target))
+            part.append_item(menu_item)
+        model.append_section(None, part)

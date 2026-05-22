@@ -72,6 +72,29 @@ def resize_max_size(elements: set[ElementPresentation]):
         item.height = max_height
 
 
+def resize_min_width(elements: set[ElementPresentation]):
+    min_width = _min_width(elements)
+
+    for item in elements:
+        item.width = min_width
+
+
+def resize_min_height(elements: set[ElementPresentation]):
+    min_height = _min_height(elements)
+
+    for item in elements:
+        item.height = min_height
+
+
+def resize_min_size(elements: set[ElementPresentation]):
+    min_width = _min_width(elements)
+    min_height = _min_height(elements)
+
+    for item in elements:
+        item.width = min_width
+        item.height = min_height
+
+
 def _left_edge(elements: set[ElementPresentation]):
     return min(item.matrix[4] for item in elements)
 
@@ -94,3 +117,11 @@ def _max_width(elements: set[ElementPresentation]):
 
 def _max_height(elements: set[ElementPresentation]):
     return max(item.height for item in elements)
+
+
+def _min_width(elements: set[ElementPresentation]):
+    return min(item.width for item in elements)
+
+
+def _min_height(elements: set[ElementPresentation]):
+    return min(item.height for item in elements)

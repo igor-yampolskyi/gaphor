@@ -350,6 +350,21 @@
         <attribute name='action'>win.diagram-align</attribute>
         <attribute name="target">max-size</attribute>
       </item>
+      <item>
+        <attribute name='label' translatable='yes'>Min Width</attribute>
+        <attribute name='action'>win.diagram-align</attribute>
+        <attribute name="target">min-width</attribute>
+      </item>
+      <item>
+        <attribute name='label' translatable='yes'>Min Height</attribute>
+        <attribute name='action'>win.diagram-align</attribute>
+        <attribute name="target">min-height</attribute>
+      </item>
+      <item>
+        <attribute name='label' translatable='yes'>Min Size</attribute>
+        <attribute name='action'>win.diagram-align</attribute>
+        <attribute name="target">min-size</attribute>
+      </item>
     </section>
   </menu>
 

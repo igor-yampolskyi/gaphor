@@ -56,4 +56,7 @@ align = {
     "max-height": gaphor.diagram.align.resize_max_height,
     "max-width": gaphor.diagram.align.resize_max_width,
     "max-size": gaphor.diagram.align.resize_max_size,
+    "min-height": gaphor.diagram.align.resize_min_height,
+    "min-width": gaphor.diagram.align.resize_min_width,
+    "min-size": gaphor.diagram.align.resize_min_size,
 }

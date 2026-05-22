@@ -13,6 +13,7 @@ from gaphor.diagram.general import Line as GeneralLine
 from gaphor.diagram.presentation import LinePresentation
 from gaphor.diagram.tests.fixtures import connect, get_connected
 from gaphor.services.undomanager import UndoManager
+from gaphor.ui.diagramalign import align as diagram_align_actions
 from gaphor.ui.diagrampage import (
     DiagramPage,
     delete_selected_items,
@@ -455,3 +456,83 @@ def test_popup_model_does_not_contain_axis_alignment_for_axis_aligned_line(diagr
     menu = popup_model(diagram, line)
 
     assert menu.get_n_items() == 1
+
+
+def test_popup_model_contains_diagram_alignment_for_selected_elements(diagram):
+    box1 = diagram.create(Box)
+    box2 = diagram.create(Box)
+
+    menu = popup_model(diagram, box1, selected_items=[box1, box2])
+
+    assert menu.get_n_items() == 4
+
+    section = menu.get_item_link(1, "section")
+    assert section is not None
+    assert section.get_n_items() == 3
+
+    assert menu_item(section, 0) == ("Align Left", "win.diagram-align", "left")
+    assert menu_item(section, 1) == ("Align Right", "win.diagram-align", "right")
+    assert menu_item(section, 2) == (
+        "Align Vertical Center",
+        "win.diagram-align",
+        "vertical-center",
+    )
+
+    section = menu.get_item_link(2, "section")
+    assert section is not None
+    assert section.get_n_items() == 3
+
+    assert menu_item(section, 0) == ("Align Top", "win.diagram-align", "top")
+    assert menu_item(section, 1) == ("Align Bottom", "win.diagram-align", "bottom")
+    assert menu_item(section, 2) == (
+        "Align Horizontal Center",
+        "win.diagram-align",
+        "horizontal-center",
+    )
+
+    section = menu.get_item_link(3, "section")
+    assert section is not None
+    assert section.get_n_items() == 6
+
+    assert menu_item(section, 0) == ("Max Width", "win.diagram-align", "max-width")
+    assert menu_item(section, 1) == ("Max Height", "win.diagram-align", "max-height")
+    assert menu_item(section, 2) == ("Max Size", "win.diagram-align", "max-size")
+    assert menu_item(section, 3) == ("Min Width", "win.diagram-align", "min-width")
+    assert menu_item(section, 4) == ("Min Height", "win.diagram-align", "min-height")
+    assert menu_item(section, 5) == ("Min Size", "win.diagram-align", "min-size")
+
+
+def test_popup_model_does_not_contain_diagram_alignment_for_single_element(diagram):
+    box = diagram.create(Box)
+
+    menu = popup_model(diagram, box, selected_items=[box])
+
+    assert menu.get_n_items() == 1
+
+
+def test_diagram_align_min_size(diagram):
+    box1 = diagram.create(Box)
+    box1.width = 100
+    box1.height = 80
+    box2 = diagram.create(Box)
+    box2.width = 60
+    box2.height = 120
+
+    diagram_align_actions["min-size"]({box1, box2})
+
+    assert box1.width == box2.width == 60
+    assert box1.height == box2.height == 80
+
+
+def menu_item(section, index):
+    label = section.get_item_attribute_value(
+        index, "label", GLib.VariantType.new("s")
+    ).get_string()
+    action = section.get_item_attribute_value(
+        index, "action", GLib.VariantType.new("s")
+    ).get_string()
+    target = section.get_item_attribute_value(
+        index, "target", GLib.VariantType.new("s")
+    ).get_string()
+
+    return label, action, target
