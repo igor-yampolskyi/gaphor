@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 
-from gi.repository import Gtk
+from gi.repository import GLib, Gtk
 
 from gaphor.abc import ActionProvider
 from gaphor.core import action, event_handler
@@ -356,11 +356,19 @@ class Diagrams(UIComponent, ActionProvider):
                 self.event_manager.handle(DiagramOpened(diagram))
 
         if current_diagram_id:
-            current_diagram = self.element_factory.lookup(current_diagram_id)
-            if self.set_current_diagram(current_diagram):
-                return
+            if not self.set_current_diagram_by_id(current_diagram_id):
+                GLib.idle_add(self.restore_current_diagram, current_diagram_id)
+            return
         if self._notebook and self._notebook.get_n_pages():
             self._notebook.set_selected_page(self._notebook.get_nth_page(0))
+
+    def set_current_diagram_by_id(self, diagram_id: str) -> bool:
+        current_diagram = self.element_factory.lookup(diagram_id)
+        return bool(current_diagram and self.set_current_diagram(current_diagram))
+
+    def restore_current_diagram(self, diagram_id: str) -> bool:
+        self.set_current_diagram_by_id(diagram_id)
+        return False
 
     @event_handler(ModelFlushed)
     def _on_flush_model(self, event):

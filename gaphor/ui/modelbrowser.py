@@ -17,6 +17,7 @@ from gaphor.transaction import Transaction
 from gaphor.ui.abc import UIComponent
 from gaphor.ui.actiongroup import apply_action_group
 from gaphor.ui.event import (
+    CurrentDiagramChanged,
     ElementFocused,
     ElementOpened,
     ModelSelectionChanged,
@@ -44,6 +45,7 @@ class ModelBrowser(UIComponent, ActionProvider):
 
     def open(self):
         self.event_manager.subscribe(self.on_diagram_selection_changed)
+        self.event_manager.subscribe(self.on_current_diagram_changed)
         self.event_manager.subscribe(self.on_modeling_language_changed)
 
         model_type = self.modeling_language.model_browser_model
@@ -118,6 +120,7 @@ class ModelBrowser(UIComponent, ActionProvider):
 
     def close(self):
         self.event_manager.unsubscribe(self.on_diagram_selection_changed)
+        self.event_manager.unsubscribe(self.on_current_diagram_changed)
         self.event_manager.unsubscribe(self.on_modeling_language_changed)
         if self.model:
             self.model.shutdown()
@@ -256,6 +259,11 @@ class ModelBrowser(UIComponent, ActionProvider):
             return
         if element := event.focused_item.subject:
             self.select_element_quietly(element)
+
+    @event_handler(CurrentDiagramChanged)
+    def on_current_diagram_changed(self, event):
+        if event.diagram:
+            self.select_element_quietly(event.diagram)
 
     @event_handler(ModelingLanguageChanged)
     def on_modeling_language_changed(self, event: ModelingLanguageChanged) -> None:

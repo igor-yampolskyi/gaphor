@@ -1,6 +1,7 @@
 import pytest
 
 from gaphor.application import Session
+from gaphor.core.modeling import ModelReady
 from gaphor.diagram.event import DiagramOpened
 from gaphor.ui.abc import UIComponent
 from gaphor.ui.event import ElementOpened
@@ -53,6 +54,29 @@ async def test_show_diagram(session):
     event_manager = session.get_service("event_manager")
     event_manager.handle(DiagramOpened(diagram))
     assert get_current_diagram(session) == diagram
+
+
+@pytest.mark.asyncio
+async def test_restore_current_diagram(session):
+    element_factory = session.get_service("element_factory")
+    first_diagram = element_factory.create(Diagram)
+    current_diagram = element_factory.create(Diagram)
+    last_diagram = element_factory.create(Diagram)
+
+    properties = session.get_service("properties")
+    properties.set(
+        "opened-diagrams",
+        [first_diagram.id, current_diagram.id, last_diagram.id],
+    )
+    properties.set("current-diagram", current_diagram.id)
+
+    event_manager = session.get_service("event_manager")
+    event_manager.handle(ModelReady(element_factory))
+
+    iterate_until(lambda: get_current_diagram(session) is current_diagram)
+
+    assert get_current_diagram(session) is current_diagram
+    assert properties.get("current-diagram") == current_diagram.id
 
 
 @pytest.mark.asyncio

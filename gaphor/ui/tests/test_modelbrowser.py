@@ -9,6 +9,7 @@ from gaphor.core.modeling import Base, Diagram, ModelReady
 from gaphor.i18n import gettext
 from gaphor.services.componentregistry import ComponentRegistry
 from gaphor.services.modelinglanguage import ModelingLanguageService
+from gaphor.ui.event import CurrentDiagramChanged
 from gaphor.ui.modelbrowser import (
     ElementDragData,
     ModelBrowser,
@@ -238,6 +239,16 @@ def test_create_diagram(model_browser, element_factory):
     diagram = next(element_factory.select(Diagram))
 
     assert diagram.diagramType == "cls"
+
+
+def test_current_diagram_changed_selects_diagram(
+    model_browser, element_factory, event_manager
+):
+    diagram = element_factory.create(UML.Diagram)
+
+    event_manager.handle(CurrentDiagramChanged(diagram))
+
+    assert model_browser.get_selected_element() is diagram
 
 
 def test_delete_element(model_browser, element_factory):
