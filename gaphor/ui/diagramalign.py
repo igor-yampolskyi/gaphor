@@ -59,4 +59,6 @@ align = {
     "min-height": gaphor.diagram.align.resize_min_height,
     "min-width": gaphor.diagram.align.resize_min_width,
     "min-size": gaphor.diagram.align.resize_min_size,
+    "distribute-horizontal": gaphor.diagram.align.distribute_horizontally,
+    "distribute-vertical": gaphor.diagram.align.distribute_vertically,
 }

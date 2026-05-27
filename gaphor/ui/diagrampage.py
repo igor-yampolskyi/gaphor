@@ -634,6 +634,10 @@ def append_alignment_actions(model: Gio.Menu) -> None:
             (gettext("Align Horizontal Center"), "horizontal-center"),
         ),
         (
+            (gettext("Distribute Horizontally"), "distribute-horizontal"),
+            (gettext("Distribute Vertically"), "distribute-vertical"),
+        ),
+        (
             (gettext("Max Width"), "max-width"),
             (gettext("Max Height"), "max-height"),
             (gettext("Max Size"), "max-size"),

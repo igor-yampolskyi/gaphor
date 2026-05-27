@@ -464,7 +464,7 @@ def test_popup_model_contains_diagram_alignment_for_selected_elements(diagram):
 
     menu = popup_model(diagram, box1, selected_items=[box1, box2])
 
-    assert menu.get_n_items() == 4
+    assert menu.get_n_items() == 5
 
     section = menu.get_item_link(1, "section")
     assert section is not None
@@ -491,6 +491,21 @@ def test_popup_model_contains_diagram_alignment_for_selected_elements(diagram):
     )
 
     section = menu.get_item_link(3, "section")
+    assert section is not None
+    assert section.get_n_items() == 2
+
+    assert menu_item(section, 0) == (
+        "Distribute Horizontally",
+        "win.diagram-align",
+        "distribute-horizontal",
+    )
+    assert menu_item(section, 1) == (
+        "Distribute Vertically",
+        "win.diagram-align",
+        "distribute-vertical",
+    )
+
+    section = menu.get_item_link(4, "section")
     assert section is not None
     assert section.get_n_items() == 6
 
@@ -522,6 +537,42 @@ def test_diagram_align_min_size(diagram):
 
     assert box1.width == box2.width == 60
     assert box1.height == box2.height == 80
+
+
+def test_diagram_align_distribute_horizontally_uses_min_gap(diagram):
+    box1 = diagram.create(Box)
+    box1.width = 100
+    box1.matrix.translate(0, 20)
+    box2 = diagram.create(Box)
+    box2.width = 120
+    box2.matrix.translate(130, 10)
+    box3 = diagram.create(Box)
+    box3.width = 130
+    box3.matrix.translate(300, 0)
+
+    diagram_align_actions["distribute-horizontal"]({box3, box1, box2})
+
+    assert box1.matrix[4] == 0
+    assert box2.matrix[4] == 130
+    assert box3.matrix[4] == 280
+
+
+def test_diagram_align_distribute_vertically_uses_default_gap_for_overlaps(diagram):
+    box1 = diagram.create(Box)
+    box1.height = 80
+    box1.matrix.translate(20, 0)
+    box2 = diagram.create(Box)
+    box2.height = 100
+    box2.matrix.translate(10, 10)
+    box3 = diagram.create(Box)
+    box3.height = 60
+    box3.matrix.translate(0, 25)
+
+    diagram_align_actions["distribute-vertical"]({box3, box1, box2})
+
+    assert box1.matrix[5] == 0
+    assert box2.matrix[5] == 90
+    assert box3.matrix[5] == 200
 
 
 def menu_item(section, index):

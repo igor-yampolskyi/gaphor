@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+from itertools import pairwise
+
 from gaphor.diagram.presentation import ElementPresentation
+
+DEFAULT_DISTRIBUTE_GAP = 10.0
 
 
 def align_left(elements: set[ElementPresentation]):
@@ -95,6 +99,28 @@ def resize_min_size(elements: set[ElementPresentation]):
         item.height = min_height
 
 
+def distribute_horizontally(elements: set[ElementPresentation]):
+    items = sorted(elements, key=lambda item: (item.matrix[4], item.matrix[5]))
+    gap = _min_positive_horizontal_gap(items)
+
+    previous = items[0]
+    for item in items[1:]:
+        x = previous.matrix[4] + previous.width + gap
+        item.matrix.translate(x - item.matrix[4], 0)
+        previous = item
+
+
+def distribute_vertically(elements: set[ElementPresentation]):
+    items = sorted(elements, key=lambda item: (item.matrix[5], item.matrix[4]))
+    gap = _min_positive_vertical_gap(items)
+
+    previous = items[0]
+    for item in items[1:]:
+        y = previous.matrix[5] + previous.height + gap
+        item.matrix.translate(0, y - item.matrix[5])
+        previous = item
+
+
 def _left_edge(elements: set[ElementPresentation]):
     return min(item.matrix[4] for item in elements)
 
@@ -125,3 +151,25 @@ def _min_width(elements: set[ElementPresentation]):
 
 def _min_height(elements: set[ElementPresentation]):
     return min(item.height for item in elements)
+
+
+def _min_positive_horizontal_gap(elements: list[ElementPresentation]) -> float:
+    return min(
+        (
+            right.matrix[4] - (left.matrix[4] + left.width)
+            for left, right in pairwise(elements)
+            if right.matrix[4] > left.matrix[4] + left.width
+        ),
+        default=DEFAULT_DISTRIBUTE_GAP,
+    )
+
+
+def _min_positive_vertical_gap(elements: list[ElementPresentation]) -> float:
+    return min(
+        (
+            bottom.matrix[5] - (top.matrix[5] + top.height)
+            for top, bottom in pairwise(elements)
+            if bottom.matrix[5] > top.matrix[5] + top.height
+        ),
+        default=DEFAULT_DISTRIBUTE_GAP,
+    )
